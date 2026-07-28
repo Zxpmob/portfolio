@@ -452,11 +452,13 @@
             </button>
           </div>
 
-          <div class="chat-locked" id="chatRequest" style="display:none;">
+          <div class="chat-locked chat-request-wrap" id="chatRequest" style="display:none;">
             <div class="chat-locked-icon">🤝</div>
-            <p data-fa="قبل از گفتگو، چندتا کلمه درباره‌ی پروژه یا درخواست همکاریت بنویس." data-en="Before we chat, tell me a little about your project or request.">قبل از گفتگو، چندتا کلمه درباره‌ی پروژه یا درخواست همکاریت بنویس.</p>
+            <p data-fa="قبل از گفتگو، چندتا جزئیات درباره‌ی درخواستت بهم بده." data-en="Before we chat, share a few details about your request.">قبل از گفتگو، چندتا جزئیات درباره‌ی درخواستت بهم بده.</p>
             <form class="chat-request-form" id="chatRequestForm">
-              <textarea id="chatRequestInput" rows="4" placeholder="مثلاً: یه اپلیکیشن دسکتاپ با سی‌شارپ لازم دارم برای..." data-fa-ph="مثلاً: یه اپلیکیشن دسکتاپ با سی‌شارپ لازم دارم برای..." data-en-ph="e.g. I need a C# desktop app for..." required></textarea>
+              <input type="text" id="reqTitle" placeholder="Title" data-fa-ph="عنوان (مثلاً: طراحی اپلیکیشن دسکتاپ)" data-en-ph="Title (e.g. Desktop App Design)" required>
+              <input type="text" id="reqSubject" placeholder="What do you need?" data-fa-ph="خواسته‌ات چیه؟ (مثلاً: مشاوره، همکاری، یه پروژه‌ی مشخص)" data-en-ph="What do you need? (e.g. consulting, collaboration, a specific project)" required>
+              <textarea id="reqDescription" rows="4" placeholder="Description" data-fa-ph="توضیحات کامل‌تر درباره‌ی پروژه یا درخواستت..." data-en-ph="More details about your project or request..." required></textarea>
               <button type="submit" class="btn btn-primary">
                 <span data-fa="ارسال درخواست" data-en="Send Request">ارسال درخواست</span>
               </button>
