@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" id="htmlRoot">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request Details — Zxpmob Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Vazirmatn:wght@400;500;600;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<style>
+  :root {
+    --bg: #060613; --surface: #11112a; --surface-solid: #16163a; --border: #26264c;
+    --text: #eef0ff; --text-muted: #9797bb; --text-dim: #6a6a8f; --violet: #a78bfa;
+    --grad: linear-gradient(135deg, #7c6cf6 0%, #4f8cff 100%);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text); font-family: 'Vazirmatn', sans-serif;
+    min-height: 100vh; padding: 24px; position: relative; overflow-x: hidden;
+  }
+  body::before, body::after { content: ''; position: fixed; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: 0; }
+  body::before { width: 420px; height: 420px; background: radial-gradient(circle, rgba(124,108,246,.28), transparent 70%); top: -120px; left: -120px; }
+  body::after { width: 380px; height: 380px; background: radial-gradient(circle, rgba(79,140,255,.22), transparent 70%); bottom: -120px; right: -100px; }
+
+  .wrap { max-width: 720px; margin: 0 auto; position: relative; z-index: 1; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: .84rem; margin-bottom: 20px; }
+  .back-link:hover { color: var(--violet); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 34px 32px;
+    position: relative; overflow: hidden; box-shadow: 0 40px 100px -30px rgba(124,108,246,.3);
+  }
+  .card::before { content: ''; position: absolute; top: 0; inset-inline: 0; height: 3px; background: var(--grad); }
+
+  .center-screen { min-height: 80vh; display: flex; align-items: center; justify-content: center; }
+  .logo { font-weight: 800; font-size: 1.4rem; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 6px; display: block; text-align: center; }
+  input {
+    width: 100%; padding: 13px 16px; background: var(--surface-solid); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: inherit; font-size: .92rem; margin-bottom: 12px;
+  }
+  button {
+    padding: 13px 22px; border: none; border-radius: 10px; background: var(--grad); color: #fff;
+    font-family: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; transition: all .25s ease;
+  }
+  button:hover { transform: translateY(-1px); box-shadow: 0 10px 26px -10px rgba(124,108,246,.5); }
+  button.full { width: 100%; }
+  .error-msg { color: #ff8a8a; font-size: .82rem; margin-top: 10px; text-align: center; }
+
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+  .header-row h1 { font-size: 1.3rem; font-weight: 800; }
+  .status-badge { font-size: .74rem; font-weight: 700; padding: 5px 14px; border-radius: 100px; font-family: 'JetBrains Mono', monospace; }
+  .status-badge.status-pending { background: rgba(255,196,77,.15); color: #ffc44d; }
+  .status-badge.status-approved { background: rgba(110,231,167,.15); color: #6ee7a7; }
+  .status-badge.status-rejected { background: rgba(255,138,138,.15); color: #ff8a8a; }
+
+  .actions-row { display: flex; gap: 12px; margin-bottom: 28px; }
+  .btn-approve { background: linear-gradient(135deg,#34d399,#10b981); }
+  .btn-reject { background: rgba(255,138,138,.12); color: #ff8a8a; border: 1px solid rgba(255,138,138,.3); }
+  .btn-reject:hover { box-shadow: none; opacity: .85; }
+  .action-note { font-size: .8rem; color: #6ee7a7; margin-bottom: 20px; }
+
+  .field { margin-bottom: 22px; }
+  .field-label { font-size: .72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .field-value { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+  .field-value.long { font-size: .95rem; font-weight: 400; line-height: 1.8; color: var(--text-muted); white-space: pre-wrap; }
+
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--border); }
+  .meta-item { font-size: .88rem; }
+  .meta-item .field-label { margin-bottom: 4px; }
+  .meta-item .field-value { font-size: .92rem; font-weight: 600; color: var(--violet); font-family: 'JetBrains Mono', monospace; }
+
+  .loading, .empty-state { text-align: center; color: var(--text-dim); padding: 60px 20px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <a class="back-link" href="admin.html">← Back to admin panel</a>
+
+  <div class="center-screen" id="loginWrap" style="display:none;">
+    <div class="card" style="max-width:420px; margin:0 auto; width:100%;">
+      <span class="logo">Zxpmob</span>
+      <input type="email" id="loginEmail" placeholder="Email" autocomplete="username">
+      <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+      <button class="full" id="loginBtn">Log in</button>
+      <p class="error-msg" id="loginError"></p>
+    </div>
+  </div>
+
+  <div id="contentWrap" style="display:none;">
+    <div class="card" id="detailCard">
+      <div class="loading">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const isConfigured = typeof SUPABASE_URL !== 'undefined' && SUPABASE_URL && !SUPABASE_URL.includes('YOUR-PROJECT');
+const loginWrap = document.getElementById('loginWrap');
+const contentWrap = document.getElementById('contentWrap');
+const detailCard = document.getElementById('detailCard');
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+function formatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+}
+function statusLabel(status) {
+  return { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' }[status] || status;
+}
+
+const params = new URLSearchParams(window.location.search);
+const requestId = params.get('id');
+
+if (!isConfigured) {
+  detailCard.innerHTML = '<div class="empty-state">Supabase is not configured yet in supabase-config.js.</div>';
+} else {
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function showLogin() {
+    contentWrap.style.display = 'none';
+    loginWrap.style.display = 'flex';
+  }
+
+  async function showContent() {
+    loginWrap.style.display = 'none';
+    contentWrap.style.display = 'block';
+    await loadRequest();
+  }
+
+  document.getElementById('loginBtn').addEventListener('click', attemptLogin);
+  document.getElementById('loginPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+
+  async function attemptLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errorEl = document.getElementById('loginError');
+    errorEl.textContent = '';
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { errorEl.textContent = 'Login failed — wrong email or password.'; return; }
+    showContent();
+  }
+
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) showContent();
+    else showLogin();
+  });
+
+  async function loadRequest() {
+    if (!requestId) {
+      detailCard.innerHTML = '<div class="empty-state">No request ID provided in the URL.</div>';
+      return;
+    }
+
+    const { data: convo, error } = await sb.from('conversations').select('*').eq('id', requestId).maybeSingle();
+
+    if (error || !convo) {
+      detailCard.innerHTML = `<div class="empty-state">Could not load this request${error ? ': ' + escapeHtml(error.message) : ''}.</div>`;
+      return;
+    }
+
+    renderRequest(convo);
+  }
+
+  function renderRequest(convo) {
+    detailCard.innerHTML = `
+      <div class="header-row">
+        <h1>${escapeHtml(convo.customer_name || 'User')}</h1>
+        <span class="status-badge status-${convo.status}">${statusLabel(convo.status)}</span>
+      </div>
+
+      <div class="actions-row">
+        <button class="btn-approve" id="approveBtn">${convo.status === 'approved' ? 'Approved ✓' : 'Approve'}</button>
+        <button class="btn-reject" id="rejectBtn">${convo.status === 'rejected' ? 'Rejected ✕' : 'Reject'}</button>
+      </div>
+      <p class="action-note" id="actionNote" style="display:none;"></p>
+
+      ${convo.request_title ? `<div class="field"><div class="field-label">Title</div><div class="field-value">${escapeHtml(convo.request_title)}</div></div>` : ''}
+      ${convo.request_subject ? `<div class="field"><div class="field-label">Request</div><div class="field-value">${escapeHtml(convo.request_subject)}</div></div>` : ''}
+
+      <div class="field">
+        <div class="field-label">Description</div>
+        <div class="field-value long">${escapeHtml(convo.request_description || convo.initial_message || '—')}</div>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-item"><div class="field-label">Phone</div><div class="field-value">${escapeHtml(convo.contact_phone || '—')}</div></div>
+        <div class="meta-item"><div class="field-label">Email</div><div class="field-value">${escapeHtml(convo.contact_email || '—')}</div></div>
+        <div class="meta-item"><div class="field-label">Submitted</div><div class="field-value">${formatDate(convo.created_at)}</div></div>
+        <div class="meta-item"><div class="field-label">Last activity</div><div class="field-value">${formatDate(convo.last_message_at)}</div></div>
+      </div>
+    `;
+
+    document.getElementById('approveBtn').addEventListener('click', () => updateStatus(convo.id, 'approved'));
+    document.getElementById('rejectBtn').addEventListener('click', () => updateStatus(convo.id, 'rejected'));
+  }
+
+  async function updateStatus(id, status) {
+    const { error } = await sb.from('conversations').update({ status }).eq('id', id);
+    const noteEl = document.getElementById('actionNote');
+    if (error) {
+      noteEl.style.display = 'block';
+      noteEl.style.color = '#ff8a8a';
+      noteEl.textContent = 'Error: ' + error.message;
+      return;
+    }
+    noteEl.style.display = 'block';
+    noteEl.style.color = '#6ee7a7';
+    noteEl.textContent = status === 'approved' ? 'Approved — live chat is now open for this user.' : 'Rejected — this user can no longer send messages.';
+    loadRequest();
+  }
+}
+</script>
+</body>
+</html>

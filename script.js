@@ -349,6 +349,41 @@ if (loginForm) {
   });
 }
 
+// ============ AUTH: SIGNUP FIELD VALIDATION ============
+const signupFieldRules = {
+  firstName: { regex: /^[A-Za-z\s'-]{1,50}$/, fa: 'فقط حروف انگلیسی مجازه.', en: 'English letters only.' },
+  lastName: { regex: /^[A-Za-z\s'-]{1,50}$/, fa: 'فقط حروف انگلیسی مجازه.', en: 'English letters only.' },
+  phone: { regex: /^[0-9+\-\s]{6,20}$/, fa: 'فقط عدد انگلیسی مجازه.', en: 'English digits only.' },
+  nationalId: { regex: /^[0-9]{5,15}$/, fa: 'فقط عدد انگلیسی مجازه.', en: 'English digits only.' },
+  email: { regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/, fa: 'ایمیل معتبر انگلیسی وارد کن.', en: 'Enter a valid email.' },
+  password: { regex: /^[\x21-\x7E]{6,}$/, fa: 'حداقل ۶ کاراکتر انگلیسی/عددی.', en: 'At least 6 English characters.' }
+};
+
+function validateSignupField(name, input) {
+  const rule = signupFieldRules[name];
+  const errEl = document.getElementById('err-' + name);
+  if (!rule || !errEl) return true;
+
+  const value = input.value.trim();
+  const valid = rule.regex.test(value);
+
+  input.classList.toggle('input-invalid', !valid && value.length > 0);
+  errEl.textContent = currentLang === 'fa' ? rule.fa : rule.en;
+  errEl.classList.toggle('visible', !valid && value.length > 0);
+
+  return valid;
+}
+
+if (signupForm) {
+  Object.keys(signupFieldRules).forEach(name => {
+    const input = document.getElementById('signup' + name.charAt(0).toUpperCase() + name.slice(1));
+    if (input) {
+      input.addEventListener('input', () => validateSignupField(name, input));
+      input.addEventListener('blur', () => validateSignupField(name, input));
+    }
+  });
+}
+
 // ============ AUTH: SIGNUP FORM ============
 if (signupForm) {
   signupForm.addEventListener('submit', async (e) => {
@@ -363,17 +398,35 @@ if (signupForm) {
       return;
     }
 
-    const firstName = document.getElementById('signupFirstName').value.trim();
-    const lastName = document.getElementById('signupLastName').value.trim();
-    const phone = document.getElementById('signupPhone').value.trim();
-    const nationalId = document.getElementById('signupNationalId').value.trim();
-    const email = document.getElementById('signupEmail').value.trim();
-    const password = document.getElementById('signupPassword').value;
+    const fields = {
+      firstName: document.getElementById('signupFirstName'),
+      lastName: document.getElementById('signupLastName'),
+      phone: document.getElementById('signupPhone'),
+      nationalId: document.getElementById('signupNationalId'),
+      email: document.getElementById('signupEmail'),
+      password: document.getElementById('signupPassword')
+    };
 
-    if (!email || !password) {
-      errorEl.textContent = currentLang === 'fa' ? 'ایمیل و رمز عبور لازمه.' : 'Email and password are required.';
+    let allValid = true;
+    Object.keys(fields).forEach(name => {
+      if (!validateSignupField(name, fields[name])) allValid = false;
+      if (!fields[name].value.trim()) {
+        fields[name].classList.add('input-invalid');
+        allValid = false;
+      }
+    });
+
+    if (!allValid) {
+      errorEl.textContent = currentLang === 'fa' ? 'لطفاً خطاهای فرم رو برطرف کن.' : 'Please fix the errors above.';
       return;
     }
+
+    const firstName = fields.firstName.value.trim();
+    const lastName = fields.lastName.value.trim();
+    const phone = fields.phone.value.trim();
+    const nationalId = fields.nationalId.value.trim();
+    const email = fields.email.value.trim();
+    const password = fields.password.value;
 
     const { data, error } = await sbClient.auth.signUp({
       email, password,
@@ -486,6 +539,8 @@ function showChatState(name) {
   chatPendingEl.style.display = name === 'pending' ? 'flex' : 'none';
   chatRejectedEl.style.display = name === 'rejected' ? 'flex' : 'none';
   chatOpenEl.style.display = name === 'open' ? 'flex' : 'none';
+  const panelEl = document.getElementById('chatPanel');
+  if (panelEl) panelEl.classList.toggle('chat-panel-auto', name === 'request');
 }
 
 if (chatLoginPrompt) {
@@ -582,9 +637,11 @@ if (chatRequestForm) {
     e.preventDefault();
     const errorEl = document.getElementById('chatRequestError');
     errorEl.textContent = '';
-    const input = document.getElementById('chatRequestInput');
-    const text = input.value.trim();
-    if (!text || !sbClient) return;
+
+    const title = document.getElementById('reqTitle').value.trim();
+    const subject = document.getElementById('reqSubject').value.trim();
+    const description = document.getElementById('reqDescription').value.trim();
+    if (!title || !subject || !description || !sbClient) return;
 
     const { data: { user } } = await sbClient.auth.getUser();
     if (!user) return;
@@ -592,9 +649,23 @@ if (chatRequestForm) {
     const meta = user.user_metadata || {};
     const fullName = [meta.first_name, meta.last_name].filter(Boolean).join(' ') || user.email;
 
+    // Pull the phone number from their profile (collected at signup) alongside their account email.
+    let contactPhone = meta.phone || '';
+    const { data: profileRow } = await sbClient
+      .from('profiles').select('phone').eq('id', user.id).maybeSingle();
+    if (profileRow && profileRow.phone) contactPhone = profileRow.phone;
+
     const { data, error } = await sbClient
       .from('conversations')
-      .insert({ customer_id: user.id, customer_name: fullName, initial_message: text })
+      .insert({
+        customer_id: user.id,
+        customer_name: fullName,
+        request_title: title,
+        request_subject: subject,
+        request_description: description,
+        contact_phone: contactPhone,
+        contact_email: user.email
+      })
       .select().single();
 
     if (error) {

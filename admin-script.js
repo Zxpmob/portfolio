@@ -139,74 +139,36 @@ if (!isConfigured) {
     }
     projectsCache = data || [];
     if (projectsCache.length === 0) {
-      listEl.innerHTML = `<div class="empty-state">${currentLang === 'fa' ? 'هنوز پروژه‌ای اضافه نشده — سایت به‌جاش نمونه‌های پیش‌فرض رو نشون می‌ده. با دکمه‌ی + یکی اضافه کن.' : 'No projects added yet — the site shows default samples instead. Use the + button to add one.'}</div>`;
+      listEl.innerHTML = `<div class="empty-state">${currentLang === 'fa' ? 'هنوز پروژه‌ای اضافه نشده — سایت به‌جاش نمونه‌های پیش‌فرض رو نشون می‌ده.' : 'No projects added yet — the site shows default samples instead.'}</div>`;
       return;
     }
     listEl.innerHTML = projectsCache.map(p => `
-      <div class="proj-card" data-id="${p.id}">
-        <span class="proj-title">${escapeHtml(p.title)}</span>
+      <div class="proj-card">
+        <div class="proj-top">
+          <span class="proj-title">${escapeHtml(p.title)}</span>
+          <div class="proj-actions">
+            <button class="btn-edit" data-id="${p.id}">${currentLang === 'fa' ? 'ویرایش' : 'Edit'}</button>
+            <button class="btn-delete" data-id="${p.id}">${currentLang === 'fa' ? 'حذف' : 'Delete'}</button>
+          </div>
+        </div>
         <div class="proj-desc">${escapeHtml(p.description || '')}</div>
         <div class="proj-tags">${(p.tags || '').split(',').filter(Boolean).map(t => `<span>${escapeHtml(t.trim())}</span>`).join('')}</div>
-        <div class="proj-card-menu">
-          <button class="btn-edit" data-action="edit" data-id="${p.id}">${currentLang === 'fa' ? 'ویرایش' : 'Edit'}</button>
-          <button class="btn-delete" data-action="delete" data-id="${p.id}">${currentLang === 'fa' ? 'حذف' : 'Delete'}</button>
-          <button class="btn-close-menu" data-action="close">${currentLang === 'fa' ? 'بستن' : 'Close'}</button>
-        </div>
+        ${p.link ? `<div class="proj-link">${escapeHtml(p.link)}</div>` : ''}
       </div>
     `).join('');
 
-    listEl.querySelectorAll('.proj-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.proj-card-menu')) return; // clicks inside the menu handled separately
-        listEl.querySelectorAll('.proj-card').forEach(c => {
-          if (c !== card) { c.classList.remove('menu-open'); c.querySelector('.proj-card-menu').classList.remove('open'); }
-        });
-        card.classList.toggle('menu-open');
-        card.querySelector('.proj-card-menu').classList.toggle('open');
-      });
-    });
-
-    listEl.querySelectorAll('[data-action="edit"]').forEach(btn => {
-      btn.addEventListener('click', (e) => { e.stopPropagation(); startEditProject(btn.dataset.id); });
-    });
-    listEl.querySelectorAll('[data-action="delete"]').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
+    listEl.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
         if (!confirm(currentLang === 'fa' ? 'این پروژه حذف بشه؟' : 'Delete this project?')) return;
         await sb.from('projects').delete().eq('id', btn.dataset.id);
         loadProjects();
       });
     });
-    listEl.querySelectorAll('[data-action="close"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const card = btn.closest('.proj-card');
-        card.classList.remove('menu-open');
-        card.querySelector('.proj-card-menu').classList.remove('open');
-      });
+
+    listEl.querySelectorAll('.btn-edit').forEach(btn => {
+      btn.addEventListener('click', () => startEditProject(btn.dataset.id));
     });
   }
-
-  // ---------- PROJECT MODAL ----------
-  const projModalOverlay = document.getElementById('projModalOverlay');
-  const deleteProjBtn = document.getElementById('deleteProjBtn');
-
-  function openProjModal() {
-    projModalOverlay.classList.add('open');
-  }
-  function closeProjModal() {
-    projModalOverlay.classList.remove('open');
-    resetProjectForm();
-  }
-
-  document.getElementById('openAddProjBtn').addEventListener('click', () => {
-    resetProjectForm();
-    openProjModal();
-  });
-  document.getElementById('projModalClose').addEventListener('click', closeProjModal);
-  projModalOverlay.addEventListener('click', (e) => {
-    if (e.target === projModalOverlay) closeProjModal();
-  });
 
   function startEditProject(id) {
     const p = projectsCache.find(x => String(x.id) === String(id));
@@ -218,8 +180,8 @@ if (!isConfigured) {
     editingProjectId = p.id;
     document.getElementById('projFormTitle').textContent = currentLang === 'fa' ? 'ویرایش پروژه' : 'Edit project';
     document.getElementById('addProjBtn').textContent = currentLang === 'fa' ? 'ثبت تغییرات' : 'Save changes';
-    deleteProjBtn.style.display = 'block';
-    openProjModal();
+    document.getElementById('cancelEditBtn').style.display = 'inline';
+    document.getElementById('panel-projects').scrollIntoView({ behavior: 'smooth' });
   }
 
   function resetProjectForm() {
@@ -230,9 +192,10 @@ if (!isConfigured) {
     document.getElementById('projLink').value = '';
     document.getElementById('projFormTitle').textContent = currentLang === 'fa' ? 'افزودن پروژه‌ی جدید' : 'Add a new project';
     document.getElementById('addProjBtn').textContent = currentLang === 'fa' ? 'افزودن پروژه' : 'Add project';
-    document.getElementById('projFormError').textContent = '';
-    deleteProjBtn.style.display = 'none';
+    document.getElementById('cancelEditBtn').style.display = 'none';
   }
+
+  document.getElementById('cancelEditBtn').addEventListener('click', resetProjectForm);
 
   document.getElementById('addProjBtn').addEventListener('click', async () => {
     const errorEl = document.getElementById('projFormError');
@@ -260,19 +223,7 @@ if (!isConfigured) {
       return;
     }
 
-    closeProjModal();
-    loadProjects();
-  });
-
-  deleteProjBtn.addEventListener('click', async () => {
-    if (!editingProjectId) return;
-    if (!confirm(currentLang === 'fa' ? 'این پروژه حذف بشه؟' : 'Delete this project?')) return;
-    const { error } = await sb.from('projects').delete().eq('id', editingProjectId);
-    if (error) {
-      document.getElementById('projFormError').textContent = (currentLang === 'fa' ? 'خطا: ' : 'Error: ') + error.message;
-      return;
-    }
-    closeProjModal();
+    resetProjectForm();
     loadProjects();
   });
 
@@ -293,11 +244,6 @@ if (!isConfigured) {
     const labels = currentLang === 'fa'
       ? ['کل بازدیدها', 'بازدید ۲۴ ساعت اخیر', 'کل پیام‌ها']
       : ['Total views', 'Views (last 24h)', 'Total messages'];
-    const icons = [
-      '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>',
-      '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
-      '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M4 6l8 7 8-7"/></svg>'
-    ];
 
     const results = await Promise.allSettled([
       getCount('page_views'),
@@ -306,12 +252,11 @@ if (!isConfigured) {
     ]);
 
     const boxes = results.map((r, i) => {
-      const iconHtml = `<div class="stat-icon">${icons[i]}</div>`;
       if (r.status === 'fulfilled') {
-        return `<div class="stat-box">${iconHtml}<span class="num">${r.value}</span><span class="label">${labels[i]}</span></div>`;
+        return `<div class="stat-box"><span class="num">${r.value}</span><span class="label">${labels[i]}</span></div>`;
       }
       const errMsg = (r.reason && r.reason.message) || (currentLang === 'fa' ? 'خطا' : 'error');
-      return `<div class="stat-box">${iconHtml}<span class="num">—</span><span class="label">${labels[i]}</span><span class="label" style="color:#ff8a8a;display:block;margin-top:4px;">${errMsg}</span></div>`;
+      return `<div class="stat-box"><span class="num">—</span><span class="label">${labels[i]}</span><span class="label" style="color:#ff8a8a;display:block;margin-top:4px;">${errMsg}</span></div>`;
     });
 
     gridEl.innerHTML = boxes.join('');
@@ -343,14 +288,32 @@ if (!isConfigured) {
       return;
     }
     listEl.innerHTML = convosCache.map(c => `
-      <button class="convo-item status-${c.status}" data-id="${c.id}">
-        <span class="convo-name">${escapeHtml(c.customer_name || 'User')}</span>
-        <span class="convo-status-badge status-${c.status}">${statusLabel(c.status)}</span>
-      </button>
+      <div class="convo-item status-${c.status}" data-id="${c.id}">
+        <div class="convo-item-main" data-id="${c.id}">
+          <span class="convo-name">${escapeHtml(c.customer_name || 'User')}</span>
+          <span class="convo-status-badge status-${c.status}">${statusLabel(c.status)}</span>
+        </div>
+        ${c.request_title ? `<div class="convo-subtitle">${escapeHtml(c.request_title)}</div>` : ''}
+        <div class="convo-actions">
+          <button class="convo-action-btn accept" data-id="${c.id}" data-act="approve" title="${currentLang === 'fa' ? 'پذیرش' : 'Accept'}">✓</button>
+          <button class="convo-action-btn reject" data-id="${c.id}" data-act="reject" title="${currentLang === 'fa' ? 'رد کردن' : 'Reject'}">✕</button>
+          <button class="convo-action-btn view" data-id="${c.id}" data-act="view" title="${currentLang === 'fa' ? 'نمایش کامل' : 'View full'}">⤢</button>
+        </div>
+      </div>
     `).join('');
 
-    listEl.querySelectorAll('.convo-item').forEach(btn => {
-      btn.addEventListener('click', () => openConversation(btn.dataset.id));
+    listEl.querySelectorAll('.convo-item-main').forEach(el => {
+      el.addEventListener('click', () => openConversation(el.dataset.id));
+    });
+    listEl.querySelectorAll('.convo-action-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const act = btn.dataset.act;
+        if (act === 'approve') setConversationStatus(id, 'approved');
+        else if (act === 'reject') setConversationStatus(id, 'rejected');
+        else if (act === 'view') window.open('request-detail.html?id=' + id, '_blank');
+      });
     });
   }
 
@@ -370,8 +333,15 @@ if (!isConfigured) {
       threadEl.innerHTML = `
         <div class="chat-thread-header">${escapeHtml(convo.customer_name || 'User')} <span class="convo-status-badge status-${convo.status}">${statusLabel(convo.status)}</span></div>
         <div class="request-preview">
-          <p class="request-label">${currentLang === 'fa' ? 'متن درخواست:' : 'Request message:'}</p>
-          <p class="request-text">${escapeHtml(convo.initial_message || '—')}</p>
+          ${convo.request_title ? `<p class="request-field-label">${currentLang === 'fa' ? 'عنوان' : 'Title'}</p><p class="request-field-value">${escapeHtml(convo.request_title)}</p>` : ''}
+          ${convo.request_subject ? `<p class="request-field-label">${currentLang === 'fa' ? 'خواسته' : 'Request'}</p><p class="request-field-value">${escapeHtml(convo.request_subject)}</p>` : ''}
+          <p class="request-field-label">${currentLang === 'fa' ? 'توضیحات' : 'Description'}</p>
+          <p class="request-text">${escapeHtml(convo.request_description || convo.initial_message || '—')}</p>
+          <div class="request-contact-row">
+            ${convo.contact_phone ? `<span>📞 ${escapeHtml(convo.contact_phone)}</span>` : ''}
+            ${convo.contact_email ? `<span>✉️ ${escapeHtml(convo.contact_email)}</span>` : ''}
+          </div>
+          <a class="view-full-link" href="request-detail.html?id=${convo.id}" target="_blank">${currentLang === 'fa' ? 'نمایش کامل در صفحه‌ی جدید ↗' : 'Open full details ↗'}</a>
         </div>
         <div class="approve-actions">
           <button class="btn-approve" id="approveBtn">${actionLabel}</button>
