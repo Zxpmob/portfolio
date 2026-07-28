@@ -3,11 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zxpmob — Developer Portfolio</title>
-<meta name="description" content="Zxpmob — Software Developer Portfolio">
+
+<title>Zxpmob — Python, C# &amp; Web Developer Portfolio</title>
+<meta name="description" content="Zxpmob is a Python, C#, and web developer building clean, reliable software. Explore projects, skills, and get in touch to start a collaboration.">
+<meta name="keywords" content="Zxpmob, Python developer, C# developer, web developer, software developer portfolio, freelance programmer">
+<meta name="author" content="Zxpmob">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://zxpmob.github.io/portfolio/">
+
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="alternate icon" href="favicon.svg">
+<meta name="theme-color" content="#060613">
+
+<!-- Open Graph / Facebook, LinkedIn, Telegram -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://zxpmob.github.io/portfolio/">
+<meta property="og:site_name" content="Zxpmob">
+<meta property="og:title" content="Zxpmob — Python, C# & Web Developer">
+<meta property="og:description" content="I build modern, clean and reliable software — Python, C#, and web technologies. Take a look at my work and get in touch.">
+<meta property="og:image" content="https://zxpmob.github.io/portfolio/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="fa_IR">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://zxpmob.github.io/portfolio/">
+<meta name="twitter:title" content="Zxpmob — Python, C# & Web Developer">
+<meta name="twitter:description" content="I build modern, clean and reliable software — Python, C#, and web technologies. Take a look at my work and get in touch.">
+<meta name="twitter:image" content="https://zxpmob.github.io/portfolio/og-image.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Vazirmatn:wght@400;500;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+
+<!-- Structured data (Schema.org) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Zxpmob",
+  "url": "https://zxpmob.github.io/portfolio/",
+  "sameAs": [
+    "https://github.com/Zxpmob"
+  ],
+  "jobTitle": "Software Developer",
+  "knowsAbout": ["Python", "C#", "JavaScript", "HTML", "CSS", "Web Development"],
+  "description": "Python, C#, and web developer building clean, reliable software."
+}
+</script>
 </head>
 <body>
 
@@ -59,17 +105,7 @@
 <!-- AUTH MODAL -->
 <div class="auth-modal-overlay" id="authModalOverlay">
   <div class="auth-modal">
-    <div class="auth-modal-blob auth-modal-blob-1"></div>
-    <div class="auth-modal-blob auth-modal-blob-2"></div>
     <button class="auth-modal-close" id="authModalClose" aria-label="Close">✕</button>
-
-    <div class="auth-modal-head">
-      <div class="auth-modal-avatar">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
-      </div>
-      <h3 class="auth-modal-title" data-fa="خوش اومدی 👋" data-en="Welcome 👋">خوش اومدی 👋</h3>
-      <p class="auth-modal-sub" data-fa="برای گفتگو و ارسال درخواست همکاری، وارد شو یا یه حساب بساز" data-en="Log in or create an account to chat and send a request">برای گفتگو و ارسال درخواست همکاری، وارد شو یا یه حساب بساز</p>
-    </div>
 
     <div class="auth-tabs">
       <button class="auth-tab active" data-tab="login" data-fa="ورود" data-en="Log in">ورود</button>
@@ -77,46 +113,40 @@
     </div>
 
     <form class="auth-form" id="loginForm">
-      <div class="input-icon-wrap">
-        <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M4 6l8 7 8-7"/></svg>
-        <input type="email" name="email" placeholder="ایمیل" data-fa-ph="ایمیل" data-en-ph="Email" required>
-      </div>
-      <div class="input-icon-wrap">
-        <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
-        <input type="password" name="password" placeholder="رمز عبور" data-fa-ph="رمز عبور" data-en-ph="Password" required>
-      </div>
+      <input type="email" name="email" placeholder="ایمیل" data-fa-ph="ایمیل" data-en-ph="Email" required>
+      <input type="password" name="password" placeholder="رمز عبور" data-fa-ph="رمز عبور" data-en-ph="Password" required>
       <button type="submit" class="btn btn-primary auth-submit">
         <span data-fa="ورود" data-en="Log in">ورود</span>
       </button>
       <p class="auth-error" id="loginFormError"></p>
     </form>
 
-    <form class="auth-form" id="signupForm" style="display:none;">
+    <form class="auth-form" id="signupForm" style="display:none;" novalidate>
       <div class="form-row">
-        <div class="input-icon-wrap">
-          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
-          <input type="text" id="signupFirstName" name="firstName" placeholder="نام" data-fa-ph="نام" data-en-ph="First name">
+        <div class="field-wrap">
+          <input type="text" id="signupFirstName" name="firstName" placeholder="First name" data-fa-ph="نام (فقط انگلیسی)" data-en-ph="First name" required>
+          <span class="field-error" id="err-firstName"></span>
         </div>
-        <div class="input-icon-wrap">
-          <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
-          <input type="text" id="signupLastName" name="lastName" placeholder="نام خانوادگی" data-fa-ph="نام خانوادگی" data-en-ph="Last name">
+        <div class="field-wrap">
+          <input type="text" id="signupLastName" name="lastName" placeholder="Last name" data-fa-ph="نام خانوادگی (فقط انگلیسی)" data-en-ph="Last name" required>
+          <span class="field-error" id="err-lastName"></span>
         </div>
       </div>
-      <div class="input-icon-wrap">
-        <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l3 3v17a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M8.5 12.5c1-1.3 2-1.3 3-1.3s2 0 3 1.3M12 8h.01"/></svg>
-        <input type="tel" id="signupPhone" name="phone" placeholder="شماره موبایل" data-fa-ph="شماره موبایل" data-en-ph="Phone number">
+      <div class="field-wrap">
+        <input type="tel" id="signupPhone" name="phone" placeholder="Phone number" data-fa-ph="شماره موبایل (فقط انگلیسی)" data-en-ph="Phone number" required>
+        <span class="field-error" id="err-phone"></span>
       </div>
-      <div class="input-icon-wrap">
-        <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="12" r="2"/><path d="M13 10h5M13 14h5"/></svg>
-        <input type="text" id="signupNationalId" name="nationalId" placeholder="کد ملی" data-fa-ph="کد ملی" data-en-ph="National ID">
+      <div class="field-wrap">
+        <input type="text" id="signupNationalId" name="nationalId" placeholder="National ID" data-fa-ph="کد ملی (فقط انگلیسی)" data-en-ph="National ID" required>
+        <span class="field-error" id="err-nationalId"></span>
       </div>
-      <div class="input-icon-wrap">
-        <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M4 6l8 7 8-7"/></svg>
-        <input type="email" id="signupEmail" name="email" placeholder="ایمیل" data-fa-ph="ایمیل" data-en-ph="Email">
+      <div class="field-wrap">
+        <input type="email" id="signupEmail" name="email" placeholder="Email" data-fa-ph="ایمیل (فقط انگلیسی)" data-en-ph="Email" required>
+        <span class="field-error" id="err-email"></span>
       </div>
-      <div class="input-icon-wrap">
-        <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
-        <input type="password" id="signupPassword" name="password" placeholder="رمز عبور" data-fa-ph="رمز عبور" data-en-ph="Password">
+      <div class="field-wrap">
+        <input type="password" id="signupPassword" name="password" placeholder="Password (min 6 chars)" data-fa-ph="رمز عبور (حداقل ۶ کاراکتر)" data-en-ph="Password (min 6 chars)" required>
+        <span class="field-error" id="err-password"></span>
       </div>
       <button type="submit" class="btn btn-primary auth-submit">
         <span data-fa="ثبت‌نام" data-en="Sign up">ثبت‌نام</span>

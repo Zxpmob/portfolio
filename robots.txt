@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /admin-script.js
+Disallow: /supabase-config.js
+
+Sitemap: https://zxpmob.github.io/portfolio/sitemap.xml
