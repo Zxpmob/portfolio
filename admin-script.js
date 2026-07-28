@@ -180,8 +180,9 @@ if (!isConfigured) {
     editingProjectId = p.id;
     document.getElementById('projFormTitle').textContent = currentLang === 'fa' ? 'ویرایش پروژه' : 'Edit project';
     document.getElementById('addProjBtn').textContent = currentLang === 'fa' ? 'ثبت تغییرات' : 'Save changes';
-    document.getElementById('cancelEditBtn').style.display = 'inline';
-    document.getElementById('panel-projects').scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('deleteProjBtn').style.display = 'block';
+    document.getElementById('projFormError').textContent = '';
+    openProjModal();
   }
 
   function resetProjectForm() {
@@ -192,10 +193,47 @@ if (!isConfigured) {
     document.getElementById('projLink').value = '';
     document.getElementById('projFormTitle').textContent = currentLang === 'fa' ? 'افزودن پروژه‌ی جدید' : 'Add a new project';
     document.getElementById('addProjBtn').textContent = currentLang === 'fa' ? 'افزودن پروژه' : 'Add project';
-    document.getElementById('cancelEditBtn').style.display = 'none';
+    document.getElementById('deleteProjBtn').style.display = 'none';
+    document.getElementById('projFormError').textContent = '';
   }
 
-  document.getElementById('cancelEditBtn').addEventListener('click', resetProjectForm);
+  // ---------- PROJECT MODAL OPEN/CLOSE ----------
+  const projModalOverlay = document.getElementById('projModalOverlay');
+
+  function openProjModal() {
+    projModalOverlay.classList.add('open');
+  }
+  function closeProjModal() {
+    projModalOverlay.classList.remove('open');
+  }
+
+  document.getElementById('openAddProjBtn').addEventListener('click', () => {
+    resetProjectForm();
+    openProjModal();
+  });
+  document.getElementById('projModalClose').addEventListener('click', () => {
+    resetProjectForm();
+    closeProjModal();
+  });
+  projModalOverlay.addEventListener('click', (e) => {
+    if (e.target === projModalOverlay) {
+      resetProjectForm();
+      closeProjModal();
+    }
+  });
+
+  document.getElementById('deleteProjBtn').addEventListener('click', async () => {
+    if (!editingProjectId) return;
+    if (!confirm(currentLang === 'fa' ? 'این پروژه حذف بشه؟' : 'Delete this project?')) return;
+    const { error } = await sb.from('projects').delete().eq('id', editingProjectId);
+    if (error) {
+      document.getElementById('projFormError').textContent = (currentLang === 'fa' ? 'خطا: ' : 'Error: ') + error.message;
+      return;
+    }
+    resetProjectForm();
+    closeProjModal();
+    loadProjects();
+  });
 
   document.getElementById('addProjBtn').addEventListener('click', async () => {
     const errorEl = document.getElementById('projFormError');
@@ -224,6 +262,7 @@ if (!isConfigured) {
     }
 
     resetProjectForm();
+    closeProjModal();
     loadProjects();
   });
 

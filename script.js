@@ -485,6 +485,16 @@ async function loadDynamicProjects() {
 
   if (error || !data || data.length === 0) return; // keep fallback sample cards
 
+  const statEl = document.getElementById('statProjectsCount');
+  if (statEl) {
+    statEl.setAttribute('data-count', String(data.length));
+    // If the counter already finished animating (user scrolled to it before
+    // this fetch resolved), update the displayed number directly.
+    if (statEl.textContent !== '0') {
+      statEl.textContent = String(data.length);
+    }
+  }
+
   grid.innerHTML = data.map((p, i) => `
     <article class="project-card reveal in-view">
       <div class="project-glow"></div>
