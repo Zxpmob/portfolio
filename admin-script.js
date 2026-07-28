@@ -99,12 +99,12 @@ if (!isConfigured) {
     loadMessages(); loadProjects(); loadStats(); loadConversations();
   });
 
-  // ---------- MESSAGES ----------
+  // ---------- MESSAGES (incoming chat requests) ----------
   async function loadMessages() {
     const listEl = document.getElementById('msgList');
     listEl.innerHTML = '<div class="loading">...</div>';
 
-    const { data, error } = await sb.from('messages').select('*').order('created_at', { ascending: false });
+    const { data, error } = await sb.from('conversations').select('*').order('created_at', { ascending: false });
 
     if (error) {
       listEl.innerHTML = `<div class="empty-state">${currentLang === 'fa' ? 'خطا در دریافت پیام‌ها' : 'Error loading messages'}: ${error.message}</div>`;
@@ -115,15 +115,64 @@ if (!isConfigured) {
       return;
     }
     listEl.innerHTML = data.map(m => `
-      <div class="msg-card">
+      <div class="msg-card" data-id="${m.id}">
         <div class="msg-top">
-          <span class="msg-name">${escapeHtml(m.name)}</span>
-          <span class="msg-email">${escapeHtml(m.email)}</span>
-          <span class="msg-date">${formatDate(m.created_at)}</span>
+          <span class="msg-name">${escapeHtml(m.request_title || (currentLang === 'fa' ? 'بدون عنوان' : 'Untitled'))}</span>
+          <span class="msg-email">${escapeHtml(m.contact_email || '—')}</span>
         </div>
-        <div class="msg-body">${escapeHtml(m.message)}</div>
+        <span class="convo-status-badge status-${m.status}">${statusLabel(m.status)}</span>
+        <div class="msg-details" id="msgDetails-${m.id}" style="display:none;">
+          <p class="request-field-label" data-fa="خواسته" data-en="Request">خواسته</p>
+          <p class="request-field-value">${escapeHtml(m.request_subject || '—')}</p>
+          <p class="request-field-label" data-fa="توضیحات" data-en="Description">توضیحات</p>
+          <p class="msg-body">${escapeHtml(m.request_description || '—')}</p>
+          <p class="request-field-label" data-fa="تلفن" data-en="Phone">تلفن</p>
+          <p class="request-field-value">${escapeHtml(m.contact_phone || '—')}</p>
+          <p class="msg-date">${formatDate(m.created_at)}</p>
+        </div>
+        <div class="msg-actions">
+          <button class="btn-msg-view" data-id="${m.id}" data-act="view">${currentLang === 'fa' ? 'نمایش کامل' : 'View full'}</button>
+          ${m.status === 'approved'
+            ? `<span class="msg-approved-tag">${currentLang === 'fa' ? 'تایید شده ✓' : 'Approved ✓'}</span>`
+            : `<button class="btn-msg-approve" data-id="${m.id}" data-act="approve">${currentLang === 'fa' ? 'پذیرش' : 'Approve'}</button>`
+          }
+          <button class="btn-msg-delete" data-id="${m.id}" data-act="delete">${currentLang === 'fa' ? 'حذف' : 'Delete'}</button>
+        </div>
       </div>
     `).join('');
+
+    listEl.querySelectorAll('.btn-msg-view').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const details = document.getElementById('msgDetails-' + btn.dataset.id);
+        if (!details) return;
+        const isOpen = details.style.display !== 'none';
+        details.style.display = isOpen ? 'none' : 'flex';
+        btn.textContent = isOpen
+          ? (currentLang === 'fa' ? 'نمایش کامل' : 'View full')
+          : (currentLang === 'fa' ? 'بستن جزئیات' : 'Hide details');
+      });
+    });
+    listEl.querySelectorAll('.btn-msg-approve').forEach(btn => {
+      btn.addEventListener('click', () => setConversationStatus(btn.dataset.id, 'approved'));
+    });
+    listEl.querySelectorAll('.btn-msg-delete').forEach(btn => {
+      btn.addEventListener('click', () => deleteConversation(btn.dataset.id));
+    });
+  }
+
+  async function deleteConversation(id) {
+    if (!confirm(currentLang === 'fa' ? 'این پیام حذف بشه؟ (چت مربوطه هم حذف می‌شه)' : 'Delete this message? (its chat will be deleted too)')) return;
+    const { error } = await sb.from('conversations').delete().eq('id', id);
+    if (error) {
+      alert((currentLang === 'fa' ? 'خطا: ' : 'Error: ') + error.message);
+      return;
+    }
+    if (String(activeConvoId) === String(id)) {
+      activeConvoId = null;
+      const threadEl = document.getElementById('chatAdminThread');
+      if (threadEl) threadEl.innerHTML = `<div class="empty-state" data-fa="یه مکالمه رو انتخاب کن" data-en="Select a conversation">یه مکالمه رو انتخاب کن</div>`;
+    }
+    await Promise.all([loadMessages(), loadConversations()]);
   }
 
   // ---------- PROJECTS ----------
@@ -178,7 +227,7 @@ if (!isConfigured) {
     document.getElementById('projTags').value = p.tags || '';
     document.getElementById('projLink').value = p.link || '';
     editingProjectId = p.id;
-    document.getElementById('projFormTitle').textContent = currentLang === 'fa' ? 'ویرایش پروژه' : 'Edit project';
+    document.getElementById('projFormTitle').textContent = currentLang === 'fa' ? 'ویرایش نمونه‌کار' : 'Edit item';
     document.getElementById('addProjBtn').textContent = currentLang === 'fa' ? 'ثبت تغییرات' : 'Save changes';
     document.getElementById('deleteProjBtn').style.display = 'block';
     document.getElementById('projFormError').textContent = '';
@@ -191,8 +240,8 @@ if (!isConfigured) {
     document.getElementById('projDesc').value = '';
     document.getElementById('projTags').value = '';
     document.getElementById('projLink').value = '';
-    document.getElementById('projFormTitle').textContent = currentLang === 'fa' ? 'افزودن پروژه‌ی جدید' : 'Add a new project';
-    document.getElementById('addProjBtn').textContent = currentLang === 'fa' ? 'افزودن پروژه' : 'Add project';
+    document.getElementById('projFormTitle').textContent = currentLang === 'fa' ? 'افزودن نمونه‌کار جدید' : 'Add a new portfolio item';
+    document.getElementById('addProjBtn').textContent = currentLang === 'fa' ? 'افزودن نمونه‌کار' : 'Add item';
     document.getElementById('deleteProjBtn').style.display = 'none';
     document.getElementById('projFormError').textContent = '';
   }
@@ -287,7 +336,7 @@ if (!isConfigured) {
     const results = await Promise.allSettled([
       getCount('page_views'),
       getCount('page_views', since24h),
-      getCount('messages')
+      getCount('conversations')
     ]);
 
     const boxes = results.map((r, i) => {
@@ -315,7 +364,7 @@ if (!isConfigured) {
     const listEl = document.getElementById('chatConvoList');
     listEl.innerHTML = '<div class="loading">...</div>';
 
-    const { data, error } = await sb.from('conversations').select('*').order('last_message_at', { ascending: false });
+    const { data, error } = await sb.from('conversations').select('*').eq('status', 'approved').order('last_message_at', { ascending: false });
 
     if (error) {
       listEl.innerHTML = `<div class="empty-state">${error.message}</div>`;
@@ -323,36 +372,20 @@ if (!isConfigured) {
     }
     convosCache = data || [];
     if (convosCache.length === 0) {
-      listEl.innerHTML = `<div class="empty-state">${currentLang === 'fa' ? 'هنوز مکالمه‌ای نیست.' : 'No conversations yet.'}</div>`;
+      listEl.innerHTML = `<div class="empty-state">${currentLang === 'fa' ? 'هنوز چت بازی نیست — بعد از پذیرش یه پیام از تب «پیام‌ها»، چتش اینجا باز می‌شه.' : 'No open chats yet — approve a message from the Messages tab and it will show up here.'}</div>`;
       return;
     }
     listEl.innerHTML = convosCache.map(c => `
       <div class="convo-item status-${c.status}" data-id="${c.id}">
         <div class="convo-item-main" data-id="${c.id}">
           <span class="convo-name">${escapeHtml(c.customer_name || 'User')}</span>
-          <span class="convo-status-badge status-${c.status}">${statusLabel(c.status)}</span>
         </div>
         ${c.request_title ? `<div class="convo-subtitle">${escapeHtml(c.request_title)}</div>` : ''}
-        <div class="convo-actions">
-          <button class="convo-action-btn accept" data-id="${c.id}" data-act="approve" title="${currentLang === 'fa' ? 'پذیرش' : 'Accept'}">✓</button>
-          <button class="convo-action-btn reject" data-id="${c.id}" data-act="reject" title="${currentLang === 'fa' ? 'رد کردن' : 'Reject'}">✕</button>
-          <button class="convo-action-btn view" data-id="${c.id}" data-act="view" title="${currentLang === 'fa' ? 'نمایش کامل' : 'View full'}">⤢</button>
-        </div>
       </div>
     `).join('');
 
     listEl.querySelectorAll('.convo-item-main').forEach(el => {
       el.addEventListener('click', () => openConversation(el.dataset.id));
-    });
-    listEl.querySelectorAll('.convo-action-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        const act = btn.dataset.act;
-        if (act === 'approve') setConversationStatus(id, 'approved');
-        else if (act === 'reject') setConversationStatus(id, 'rejected');
-        else if (act === 'view') window.open('request-detail.html?id=' + id, '_blank');
-      });
     });
   }
 
@@ -424,8 +457,8 @@ if (!isConfigured) {
   async function setConversationStatus(id, status) {
     const { error } = await sb.from('conversations').update({ status }).eq('id', id);
     if (error) { alert((currentLang === 'fa' ? 'خطا: ' : 'Error: ') + error.message); return; }
-    await loadConversations();
-    openConversation(id);
+    await Promise.all([loadConversations(), loadMessages()]);
+    if (status === 'approved') openConversation(id);
   }
 
   async function loadAdminMessages() {

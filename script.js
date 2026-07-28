@@ -626,6 +626,10 @@ async function initChat(user) {
     .from('conversations').select('*').eq('customer_id', user.id).maybeSingle();
 
   if (!convo) {
+    const emailInput = document.getElementById('reqEmail');
+    const phoneInput = document.getElementById('reqPhone');
+    if (emailInput && !emailInput.value) emailInput.value = user.email || '';
+    if (phoneInput && !phoneInput.value) phoneInput.value = (user.user_metadata && user.user_metadata.phone) || '';
     showChatState('request');
     return;
   }
@@ -651,19 +655,15 @@ if (chatRequestForm) {
     const title = document.getElementById('reqTitle').value.trim();
     const subject = document.getElementById('reqSubject').value.trim();
     const description = document.getElementById('reqDescription').value.trim();
-    if (!title || !subject || !description || !sbClient) return;
+    const email = document.getElementById('reqEmail').value.trim();
+    const phone = document.getElementById('reqPhone').value.trim();
+    if (!title || !subject || !description || !email || !phone || !sbClient) return;
 
     const { data: { user } } = await sbClient.auth.getUser();
     if (!user) return;
 
     const meta = user.user_metadata || {};
     const fullName = [meta.first_name, meta.last_name].filter(Boolean).join(' ') || user.email;
-
-    // Pull the phone number from their profile (collected at signup) alongside their account email.
-    let contactPhone = meta.phone || '';
-    const { data: profileRow } = await sbClient
-      .from('profiles').select('phone').eq('id', user.id).maybeSingle();
-    if (profileRow && profileRow.phone) contactPhone = profileRow.phone;
 
     const { data, error } = await sbClient
       .from('conversations')
@@ -673,13 +673,14 @@ if (chatRequestForm) {
         request_title: title,
         request_subject: subject,
         request_description: description,
-        contact_phone: contactPhone,
-        contact_email: user.email
+        contact_phone: phone,
+        contact_email: email
       })
       .select().single();
 
     if (error) {
-      errorEl.textContent = currentLang === 'fa' ? 'ارسال ناموفق بود، دوباره امتحان کن.' : 'Something went wrong — please try again.';
+      console.error('Chat request insert failed:', error);
+      errorEl.textContent = (currentLang === 'fa' ? 'ارسال ناموفق بود: ' : 'Something went wrong: ') + error.message;
       return;
     }
 
