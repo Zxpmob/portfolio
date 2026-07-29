@@ -52,7 +52,7 @@ if (!isConfigured) {
   async function showDashboard() {
     loginWrap.style.display = 'none';
     dashWrap.style.display = 'block';
-    await Promise.all([loadMessages(), loadProjects(), loadStats(), loadConversations()]);
+    await Promise.all([loadMessages(), loadAccounts(), loadProjects(), loadStats(), loadConversations()]);
   }
 
   // ---------- LOGIN ----------
@@ -96,7 +96,7 @@ if (!isConfigured) {
   });
 
   document.getElementById('refreshBtn').addEventListener('click', () => {
-    loadMessages(); loadProjects(); loadStats(); loadConversations();
+    loadMessages(); loadAccounts(); loadProjects(); loadStats(); loadConversations();
   });
 
   // ---------- MESSAGES (incoming chat requests) ----------
@@ -173,6 +173,59 @@ if (!isConfigured) {
       if (threadEl) threadEl.innerHTML = `<div class="empty-state" data-fa="یه مکالمه رو انتخاب کن" data-en="Select a conversation">یه مکالمه رو انتخاب کن</div>`;
     }
     await Promise.all([loadMessages(), loadConversations()]);
+  }
+
+  // ---------- ACCOUNTS (registered customers) ----------
+  async function loadAccounts() {
+    const listEl = document.getElementById('accountsList');
+    listEl.innerHTML = '<div class="loading">...</div>';
+
+    const { data, error } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+
+    if (error) {
+      listEl.innerHTML = `<div class="empty-state">${currentLang === 'fa' ? 'خطا در دریافت حساب‌ها' : 'Error loading accounts'}: ${error.message}</div>`;
+      return;
+    }
+    if (!data || data.length === 0) {
+      listEl.innerHTML = `<div class="empty-state">${currentLang === 'fa' ? 'هنوز حسابی ثبت‌نام نکرده.' : 'No accounts registered yet.'}</div>`;
+      return;
+    }
+    listEl.innerHTML = data.map(a => {
+      const fullName = [a.first_name, a.last_name].filter(Boolean).join(' ') || (currentLang === 'fa' ? 'بدون نام' : 'Unnamed');
+      return `
+      <div class="msg-card" data-id="${a.id}">
+        <div class="msg-top">
+          <span class="msg-name">${escapeHtml(fullName)}${a.is_admin ? ' <span class="msg-approved-tag">(' + (currentLang === 'fa' ? 'ادمین' : 'Admin') + ')</span>' : ''}</span>
+          <span class="msg-email">${escapeHtml(a.email || '—')}</span>
+        </div>
+        <div class="request-field-value">${escapeHtml(a.phone || '—')}</div>
+        <div class="msg-details" id="acctDetails-${a.id}" style="display:none;">
+          <p class="request-field-label" data-fa="کد ملی" data-en="National ID">کد ملی</p>
+          <p class="request-field-value">${escapeHtml(a.national_id || '—')}</p>
+          <p class="request-field-label" data-fa="ایمیل" data-en="Email">ایمیل</p>
+          <p class="request-field-value">${escapeHtml(a.email || '—')}</p>
+          <p class="request-field-label" data-fa="شماره موبایل" data-en="Phone">شماره موبایل</p>
+          <p class="request-field-value">${escapeHtml(a.phone || '—')}</p>
+          <p class="msg-date">${currentLang === 'fa' ? 'تاریخ ثبت‌نام: ' : 'Registered: '}${formatDate(a.created_at)}</p>
+        </div>
+        <div class="msg-actions">
+          <button class="btn-msg-view" data-id="${a.id}" data-act="view">${currentLang === 'fa' ? 'نمایش کامل' : 'View full'}</button>
+        </div>
+      </div>
+    `;
+    }).join('');
+
+    listEl.querySelectorAll('.btn-msg-view').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const details = document.getElementById('acctDetails-' + btn.dataset.id);
+        if (!details) return;
+        const isOpen = details.style.display !== 'none';
+        details.style.display = isOpen ? 'none' : 'flex';
+        btn.textContent = isOpen
+          ? (currentLang === 'fa' ? 'نمایش کامل' : 'View full')
+          : (currentLang === 'fa' ? 'بستن جزئیات' : 'Hide details');
+      });
+    });
   }
 
   // ---------- PROJECTS ----------

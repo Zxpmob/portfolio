@@ -344,6 +344,10 @@
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="M4 6l8 7 8-7"/></svg>
           <span data-fa="پیام‌ها" data-en="Messages">پیام‌ها</span>
         </button>
+        <button class="sidebar-btn" data-tab="accounts">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          <span data-fa="حساب‌ها" data-en="Accounts">حساب‌ها</span>
+        </button>
         <button class="sidebar-btn" data-tab="chat">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 20l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
           <span data-fa="چت" data-en="Chat">چت</span>
@@ -369,6 +373,12 @@
       <div class="dash-main">
         <div class="tab-panel active" id="panel-messages">
           <div class="msg-list" id="msgList">
+            <div class="loading" data-fa="در حال بارگذاری..." data-en="Loading...">در حال بارگذاری...</div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="panel-accounts">
+          <div class="msg-list" id="accountsList">
             <div class="loading" data-fa="در حال بارگذاری..." data-en="Loading...">در حال بارگذاری...</div>
           </div>
         </div>

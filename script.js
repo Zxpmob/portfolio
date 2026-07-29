@@ -341,7 +341,14 @@ if (loginForm) {
 
     const { error } = await sbClient.auth.signInWithPassword({ email, password });
     if (error) {
-      errorEl.textContent = currentLang === 'fa' ? 'ورود ناموفق بود — ایمیل یا رمز اشتباهه.' : 'Login failed — wrong email or password.';
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('confirm')) {
+        errorEl.textContent = currentLang === 'fa'
+          ? 'ایمیلت هنوز تایید نشده — لینک تاییدی که براش فرستادیم رو توی ایمیلت باز کن.'
+          : 'Your email is not confirmed yet — open the confirmation link we sent you.';
+      } else {
+        errorEl.textContent = currentLang === 'fa' ? 'ورود ناموفق بود — ایمیل یا رمز اشتباهه.' : 'Login failed — wrong email or password.';
+      }
       return;
     }
     closeAuthModal();
@@ -385,6 +392,16 @@ if (signupForm) {
 }
 
 // ============ AUTH: SIGNUP FORM ============
+function markFieldInvalid(name, message) {
+  const input = document.getElementById('signup' + name.charAt(0).toUpperCase() + name.slice(1));
+  const errEl = document.getElementById('err-' + name);
+  if (input) input.classList.add('input-invalid');
+  if (errEl) {
+    errEl.textContent = message;
+    errEl.classList.add('visible');
+  }
+}
+
 if (signupForm) {
   signupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -428,6 +445,35 @@ if (signupForm) {
     const email = fields.email.value.trim();
     const password = fields.password.value;
 
+    // ---- Check phone / national ID aren't already registered ----
+    const submitBtn = signupForm.querySelector('button[type="submit"], button.full');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const { data: dupData, error: dupError } = await sbClient
+      .rpc('check_duplicate_contact', { p_phone: phone, p_national_id: nationalId });
+
+    if (dupError) {
+      if (submitBtn) submitBtn.disabled = false;
+      errorEl.textContent = currentLang === 'fa' ? ('خطا: ' + dupError.message) : ('Error: ' + dupError.message);
+      return;
+    }
+
+    const dup = Array.isArray(dupData) ? dupData[0] : dupData;
+    let hasDuplicate = false;
+    if (dup && dup.phone_exists) {
+      markFieldInvalid('phone', currentLang === 'fa' ? 'این شماره قبلاً ثبت شده.' : 'This phone number is already registered.');
+      hasDuplicate = true;
+    }
+    if (dup && dup.national_id_exists) {
+      markFieldInvalid('nationalId', currentLang === 'fa' ? 'این کد ملی قبلاً ثبت شده.' : 'This national ID is already registered.');
+      hasDuplicate = true;
+    }
+    if (hasDuplicate) {
+      if (submitBtn) submitBtn.disabled = false;
+      errorEl.textContent = currentLang === 'fa' ? 'لطفاً موارد قرمز رو اصلاح کن.' : 'Please fix the highlighted fields.';
+      return;
+    }
+
     const { data, error } = await sbClient.auth.signUp({
       email, password,
       options: {
@@ -440,9 +486,12 @@ if (signupForm) {
       }
     });
 
+    if (submitBtn) submitBtn.disabled = false;
+
     if (error) {
       const msg = (error.message || '').toLowerCase();
       if (msg.includes('already') || msg.includes('registered') || msg.includes('exists')) {
+        markFieldInvalid('email', currentLang === 'fa' ? 'این ایمیل قبلاً ثبت شده.' : 'This email is already registered.');
         errorEl.textContent = currentLang === 'fa'
           ? 'این ایمیل قبلاً ثبت شده — به‌جاش وارد شو.'
           : 'This email is already registered — try logging in instead.';
@@ -454,6 +503,7 @@ if (signupForm) {
 
     // Supabase silently returns no error but an empty identities array when the email already exists
     if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      markFieldInvalid('email', currentLang === 'fa' ? 'این ایمیل قبلاً ثبت شده.' : 'This email is already registered.');
       errorEl.textContent = currentLang === 'fa'
         ? 'این ایمیل قبلاً ثبت شده — به‌جاش وارد شو.'
         : 'This email is already registered — try logging in instead.';
@@ -461,12 +511,17 @@ if (signupForm) {
     }
 
     if (data.session) {
-      closeAuthModal();
+      // Confirm-email is off on this project, so signUp already returned a live
+      // session — the user is automatically logged in at this point.
+      successEl.textContent = currentLang === 'fa'
+        ? 'ثبت‌نام با موفقیت انجام شد! وارد حسابت شدی.'
+        : 'Signup successful! You are now logged in.';
       signupForm.reset();
+      setTimeout(closeAuthModal, 1200);
     } else {
       successEl.textContent = currentLang === 'fa'
-        ? 'ثبت‌نام شد! ایمیلت رو برای تایید چک کن.'
-        : 'Signed up! Check your email to confirm your account.';
+        ? 'ثبت‌نام با موفقیت انجام شد! ایمیلت رو برای تایید چک کن، بعد می‌تونی وارد شی.'
+        : 'Signup successful! Check your email to confirm your account, then log in.';
       signupForm.reset();
     }
   });
