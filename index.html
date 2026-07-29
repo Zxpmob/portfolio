@@ -443,7 +443,12 @@
           </a>
         </div>
 
+        <div class="chat-panel-backdrop" id="chatPanelBackdrop"></div>
         <div class="chat-panel reveal" id="chatPanel">
+          <div class="chat-panel-mobile-header">
+            <span data-fa="گفتگو" data-en="Chat">گفتگو</span>
+            <button type="button" class="chat-panel-close" id="chatPanelClose" aria-label="Close">✕</button>
+          </div>
           <div class="chat-locked" id="chatLocked">
             <div class="chat-locked-icon">💬</div>
             <p data-fa="برای گفتگو و ارسال پیام باید وارد حساب بشی." data-en="Log in to start a conversation.">برای گفتگو و ارسال پیام باید وارد حساب بشی.</p>
@@ -479,8 +484,19 @@
           </div>
 
           <div class="chat-open" id="chatOpen" style="display:none;">
+            <div class="chat-open-header">
+              <span data-fa="گفتگو" data-en="Chat">گفتگو</span>
+              <span class="chat-online-status">
+                <span class="online-dot" id="chatOnlineDot"></span>
+                <span id="chatOnlineText">—</span>
+              </span>
+            </div>
             <div class="chat-messages" id="chatMessages"></div>
             <form class="chat-input-row" id="chatForm">
+              <div class="chat-emoji-wrap">
+                <button type="button" class="chat-emoji-btn" id="chatEmojiBtn" aria-label="Emoji">🙂</button>
+                <div class="emoji-panel" id="chatEmojiPanel"></div>
+              </div>
               <input type="text" id="chatInput" placeholder="پیامت رو بنویس..." data-fa-ph="پیامت رو بنویس..." data-en-ph="Type your message..." autocomplete="off">
               <button type="submit" class="btn btn-primary chat-send">
                 <span data-fa="ارسال" data-en="Send">ارسال</span>
@@ -488,6 +504,7 @@
             </form>
           </div>
         </div>
+        <button type="button" class="chat-fab" id="chatFab" aria-label="Chat">💬</button>
       </div>
     </div>
   </section>

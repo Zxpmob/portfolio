@@ -481,15 +481,23 @@ if (!isConfigured) {
 
     // approved -> full chat thread
     threadEl.innerHTML = `
-      <div class="chat-thread-header">${escapeHtml(convo.customer_name || 'User')} <span class="convo-status-badge status-approved">${statusLabel('approved')}</span></div>
+      <div class="chat-thread-header">
+        <span>${escapeHtml(convo.customer_name || 'User')} <span class="convo-status-badge status-approved">${statusLabel('approved')}</span></span>
+        <span class="chat-online-status"><span class="online-dot" id="adminOnlineDot"></span><span id="adminOnlineText">—</span></span>
+      </div>
       <div class="chat-messages" id="adminChatMessages"></div>
       <form class="chat-input-row" id="adminChatForm">
+        <div class="chat-emoji-wrap">
+          <button type="button" class="chat-emoji-btn" id="adminEmojiBtn" aria-label="Emoji">🙂</button>
+          <div class="emoji-panel" id="adminEmojiPanel"></div>
+        </div>
         <input type="text" id="adminChatInput" placeholder="${currentLang === 'fa' ? 'پاسخ بده...' : 'Reply...'}">
         <button type="submit">${currentLang === 'fa' ? 'ارسال' : 'Send'}</button>
       </form>
     `;
 
     await loadAdminMessages();
+    initAdminEmojiPicker();
 
     document.getElementById('adminChatForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -497,6 +505,8 @@ if (!isConfigured) {
       const text = input.value.trim();
       if (!text) return;
       input.value = '';
+      const panel = document.getElementById('adminEmojiPanel');
+      if (panel) panel.classList.remove('open');
       const { data: inserted } = await sb.from('chat_messages')
         .insert({ conversation_id: activeConvoId, sender: 'admin', message: text })
         .select().single();
@@ -505,6 +515,7 @@ if (!isConfigured) {
     });
 
     subscribeAdminRealtime();
+    subscribeAdminPresence();
   }
 
   async function setConversationStatus(id, status) {
@@ -519,13 +530,46 @@ if (!isConfigured) {
     renderAdminMessages(data || []);
   }
 
+  function formatChatTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleTimeString(currentLang === 'fa' ? 'fa-IR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+  }
+  function adminChatMetaHtml(m) {
+    const time = formatChatTime(m.created_at);
+    if (m.sender !== 'admin') return `<span class="chat-bubble-time">${time}</span>`;
+    const seen = !!m.read_at;
+    return `<span class="chat-bubble-time">${time}</span><span class="chat-ticks${seen ? ' chat-ticks-read' : ''}">${seen ? '✓✓' : '✓'}</span>`;
+  }
+
+  async function markCustomerMessagesRead() {
+    if (!activeConvoId) return;
+    await sb.from('chat_messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('conversation_id', activeConvoId)
+      .eq('sender', 'customer')
+      .is('read_at', null);
+  }
+
+  function updateAdminMessageTicks(m) {
+    const el = document.getElementById('adminChatMessages');
+    if (!el) return;
+    const bubble = el.querySelector('[data-msg-id="' + m.id + '"]');
+    if (!bubble) return;
+    const metaEl = bubble.querySelector('.chat-bubble-meta');
+    if (metaEl) metaEl.innerHTML = adminChatMetaHtml(m);
+  }
+
   function renderAdminMessages(messages) {
     const el = document.getElementById('adminChatMessages');
     if (!el) return;
     el.innerHTML = messages.map(m => `
-      <div class="chat-bubble ${m.sender === 'admin' ? 'chat-bubble-me' : 'chat-bubble-them'}"><p>${escapeHtml(m.message)}</p></div>
+      <div class="chat-bubble ${m.sender === 'admin' ? 'chat-bubble-me' : 'chat-bubble-them'}" data-msg-id="${m.id}">
+        <p>${escapeHtml(m.message)}</p>
+        <div class="chat-bubble-meta">${adminChatMetaHtml(m)}</div>
+      </div>
     `).join('');
     el.scrollTop = el.scrollHeight;
+    markCustomerMessagesRead();
   }
 
   function appendAdminMessage(m) {
@@ -533,9 +577,11 @@ if (!isConfigured) {
     if (!el) return;
     const div = document.createElement('div');
     div.className = 'chat-bubble ' + (m.sender === 'admin' ? 'chat-bubble-me' : 'chat-bubble-them');
-    div.innerHTML = `<p>${escapeHtml(m.message)}</p>`;
+    div.dataset.msgId = m.id;
+    div.innerHTML = `<p>${escapeHtml(m.message)}</p><div class="chat-bubble-meta">${adminChatMetaHtml(m)}</div>`;
     el.appendChild(div);
     el.scrollTop = el.scrollHeight;
+    if (m.sender !== 'admin') markCustomerMessagesRead();
   }
 
   function subscribeAdminRealtime() {
@@ -547,7 +593,56 @@ if (!isConfigured) {
       }, (payload) => {
         if (payload.new.sender !== 'admin') appendAdminMessage(payload.new);
       })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'chat_messages',
+        filter: `conversation_id=eq.${activeConvoId}`
+      }, (payload) => {
+        updateAdminMessageTicks(payload.new);
+      })
       .subscribe();
+  }
+
+  // ---------- online presence (is this customer online right now?) ----------
+  let adminPresenceChannel = null;
+  function setAdminOnlineStatus(isOnline) {
+    const dot = document.getElementById('adminOnlineDot');
+    const text = document.getElementById('adminOnlineText');
+    if (!dot || !text) return;
+    dot.classList.toggle('online', isOnline);
+    text.textContent = isOnline
+      ? (currentLang === 'fa' ? 'آنلاین' : 'Online')
+      : (currentLang === 'fa' ? 'آفلاین' : 'Offline');
+  }
+  function subscribeAdminPresence() {
+    if (adminPresenceChannel) sb.removeChannel(adminPresenceChannel);
+    adminPresenceChannel = sb.channel('presence-chat-' + activeConvoId, {
+      config: { presence: { key: 'admin' } }
+    });
+    adminPresenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = adminPresenceChannel.presenceState();
+        setAdminOnlineStatus(Object.keys(state).some((k) => k !== 'admin'));
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') await adminPresenceChannel.track({ online_at: new Date().toISOString() });
+      });
+  }
+
+  // ---------- emoji picker ----------
+  const CHAT_EMOJIS = ['😀','😁','😂','🤣','😊','🙂','😉','😍','😘','😜','🤔','😎','🥳','😢','😭','😡','👍','👎','🙏','👏','💪','🔥','✨','🎉','❤️','💯','✅','❌','🤝','😴','🙃','😇','🤩','😏','😬','🫡','👋','🤗','😳','🙄','😌','☕','🚀','💡','📌','📎'];
+  function initAdminEmojiPicker() {
+    const btn = document.getElementById('adminEmojiBtn');
+    const panel = document.getElementById('adminEmojiPanel');
+    const input = document.getElementById('adminChatInput');
+    if (!btn || !panel || !input) return;
+    panel.innerHTML = CHAT_EMOJIS.map((em) => `<button type="button" class="emoji-item">${em}</button>`).join('');
+    panel.querySelectorAll('.emoji-item').forEach((item) => {
+      item.addEventListener('click', () => { input.value += item.textContent; input.focus(); });
+    });
+    btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); panel.classList.toggle('open'); });
+    document.addEventListener('click', (e) => {
+      if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) panel.classList.remove('open');
+    });
   }
 
   // ---------- CHANGE PASSWORD ----------

@@ -450,6 +450,74 @@ html[dir="rtl"] .btn:hover .btn-arrow { transform: scaleX(-1) translateX(3px); }
 .chat-input-row input:focus { outline: none; border-color: var(--violet); }
 .chat-send { padding: 11px 20px; border-radius: 100px; }
 
+/* message timestamp + read ticks (Telegram-style) */
+.chat-bubble-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 4px; }
+.chat-bubble-them .chat-bubble-meta { justify-content: flex-start; }
+.chat-bubble-time { font-size: .68rem; opacity: .7; font-family: 'JetBrains Mono', monospace; }
+.chat-ticks { font-size: .74rem; letter-spacing: -2px; opacity: .7; }
+.chat-ticks-read { color: #6ee7a7; opacity: 1; }
+
+/* online status in chat header */
+.chat-open-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
+  border-bottom: 1px solid var(--border); font-size: .86rem; font-weight: 700;
+}
+.chat-online-status { display: flex; align-items: center; gap: 6px; font-size: .76rem; font-weight: 600; color: var(--text-dim); }
+.online-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; transition: background .2s ease, box-shadow .2s ease; }
+.online-dot.online { background: #34d399; box-shadow: 0 0 0 3px rgba(52,211,153,.2); }
+
+/* emoji picker */
+.chat-emoji-wrap { position: relative; display: flex; align-items: center; }
+.chat-emoji-btn {
+  background: var(--surface-solid); border: 1px solid var(--border); border-radius: 50%;
+  width: 40px; height: 40px; font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+  padding: 0; flex-shrink: 0;
+}
+.chat-emoji-btn:hover { border-color: var(--violet); transform: none; box-shadow: none; }
+.emoji-panel {
+  display: none; position: absolute; bottom: calc(100% + 10px); inset-inline-start: 0; z-index: 20;
+  width: 260px; max-height: 220px; overflow-y: auto; background: var(--surface-solid); border: 1px solid var(--border);
+  border-radius: 14px; padding: 10px; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  box-shadow: 0 20px 50px -15px rgba(0,0,0,.5);
+}
+.emoji-panel.open { display: grid; }
+.emoji-item {
+  background: transparent; border: none; font-size: 1.25rem; padding: 6px; border-radius: 8px; cursor: pointer;
+  line-height: 1; box-shadow: none;
+}
+.emoji-item:hover { background: rgba(167,139,250,.15); transform: none; box-shadow: none; }
+
+/* mobile drawer chrome (hidden on desktop) */
+.chat-panel-mobile-header, .chat-panel-close, .chat-fab, .chat-panel-backdrop { display: none; }
+
+@media (max-width: 860px) {
+  .chat-fab {
+    display: flex; align-items: center; justify-content: center; position: fixed; bottom: 20px;
+    inset-inline-end: 20px; z-index: 500; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--grad); color: #fff; border: none; font-size: 1.4rem; padding: 0;
+    box-shadow: 0 14px 34px -10px rgba(124,108,246,.65);
+  }
+  .chat-panel-backdrop {
+    display: block; position: fixed; inset: 0; background: rgba(6,6,19,.6); backdrop-filter: blur(2px);
+    z-index: 599; opacity: 0; pointer-events: none; transition: opacity .25s ease;
+  }
+  .chat-panel-backdrop.open { opacity: 1; pointer-events: auto; }
+  .chat-panel {
+    position: fixed; top: 0; bottom: 0; inset-inline-end: -100%; height: 100vh; width: min(92vw, 380px);
+    z-index: 600; border-radius: 0; transition: inset-inline-end .3s ease; height: 100dvh;
+  }
+  .chat-panel.mobile-open { inset-inline-end: 0; }
+  .chat-panel-mobile-header {
+    display: flex; align-items: center; justify-content: space-between; padding: 16px; font-weight: 800;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .chat-panel-close {
+    display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface-solid); border: 1px solid var(--border); color: var(--text-muted); padding: 0; font-size: .9rem;
+  }
+  body.chat-drawer-open { overflow: hidden; }
+}
+
 /* ============ FOOTER ============ */
 .site-footer { border-top: 1px solid var(--border); padding: 28px; }
 .footer-inner {

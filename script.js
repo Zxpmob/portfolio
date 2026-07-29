@@ -585,6 +585,7 @@ if (sbClient) {
 let currentConversationId = null;
 let chatRealtimeChannel = null;
 let convoStatusChannel = null;
+let chatPresenceChannel = null;
 
 const chatLocked = document.getElementById('chatLocked');
 const chatRequestEl = document.getElementById('chatRequest');
@@ -595,6 +596,8 @@ const chatLoginPrompt = document.getElementById('chatLoginPrompt');
 const chatRequestForm = document.getElementById('chatRequestForm');
 const chatForm = document.getElementById('chatForm');
 const chatMessagesEl = document.getElementById('chatMessages');
+const chatOnlineDot = document.getElementById('chatOnlineDot');
+const chatOnlineText = document.getElementById('chatOnlineText');
 
 const chatStates = { chatLocked, chatRequestEl, chatPendingEl, chatRejectedEl, chatOpenEl };
 
@@ -612,23 +615,56 @@ if (chatLoginPrompt) {
   chatLoginPrompt.addEventListener('click', openAuthModal);
 }
 
+// ---------- time + read-tick helpers (Telegram-style) ----------
+function formatChatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString(currentLang === 'fa' ? 'fa-IR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+}
+function chatMetaHtml(m) {
+  const time = formatChatTime(m.created_at);
+  if (m.sender !== 'customer') return `<span class="chat-bubble-time">${time}</span>`;
+  const seen = !!m.read_at;
+  return `<span class="chat-bubble-time">${time}</span><span class="chat-ticks${seen ? ' chat-ticks-read' : ''}">${seen ? '✓✓' : '✓'}</span>`;
+}
+
 function renderChatMessages(messages) {
   if (!chatMessagesEl) return;
   chatMessagesEl.innerHTML = messages.map(m => `
-    <div class="chat-bubble ${m.sender === 'customer' ? 'chat-bubble-me' : 'chat-bubble-them'}">
+    <div class="chat-bubble ${m.sender === 'customer' ? 'chat-bubble-me' : 'chat-bubble-them'}" data-msg-id="${m.id}">
       <p>${escapeHtmlGlobal(m.message)}</p>
+      <div class="chat-bubble-meta">${chatMetaHtml(m)}</div>
     </div>
   `).join('');
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+  markAdminMessagesRead();
 }
 
 function appendChatMessage(m) {
   if (!chatMessagesEl) return;
   const div = document.createElement('div');
   div.className = 'chat-bubble ' + (m.sender === 'customer' ? 'chat-bubble-me' : 'chat-bubble-them');
-  div.innerHTML = `<p>${escapeHtmlGlobal(m.message)}</p>`;
+  div.dataset.msgId = m.id;
+  div.innerHTML = `<p>${escapeHtmlGlobal(m.message)}</p><div class="chat-bubble-meta">${chatMetaHtml(m)}</div>`;
   chatMessagesEl.appendChild(div);
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+  if (m.sender !== 'customer') markAdminMessagesRead();
+}
+
+function updateChatMessageTicks(m) {
+  if (!chatMessagesEl) return;
+  const bubble = chatMessagesEl.querySelector('[data-msg-id="' + m.id + '"]');
+  if (!bubble) return;
+  const metaEl = bubble.querySelector('.chat-bubble-meta');
+  if (metaEl) metaEl.innerHTML = chatMetaHtml(m);
+}
+
+async function markAdminMessagesRead() {
+  if (!sbClient || !currentConversationId) return;
+  await sbClient.from('chat_messages')
+    .update({ read_at: new Date().toISOString() })
+    .eq('conversation_id', currentConversationId)
+    .eq('sender', 'admin')
+    .is('read_at', null);
 }
 
 function subscribeChatRealtime() {
@@ -642,7 +678,38 @@ function subscribeChatRealtime() {
     }, (payload) => {
       if (payload.new.sender !== 'customer') appendChatMessage(payload.new);
     })
+    .on('postgres_changes', {
+      event: 'UPDATE', schema: 'public', table: 'chat_messages',
+      filter: `conversation_id=eq.${currentConversationId}`
+    }, (payload) => {
+      updateChatMessageTicks(payload.new);
+    })
     .subscribe();
+}
+
+// ---------- online presence (is the admin online right now?) ----------
+function setChatOnlineStatus(isOnline) {
+  if (!chatOnlineDot || !chatOnlineText) return;
+  chatOnlineDot.classList.toggle('online', isOnline);
+  chatOnlineText.textContent = isOnline
+    ? (currentLang === 'fa' ? 'آنلاین' : 'Online')
+    : (currentLang === 'fa' ? 'آفلاین' : 'Offline');
+}
+
+function subscribeChatPresence() {
+  if (!sbClient || !currentConversationId) return;
+  if (chatPresenceChannel) sbClient.removeChannel(chatPresenceChannel);
+  chatPresenceChannel = sbClient.channel('presence-chat-' + currentConversationId, {
+    config: { presence: { key: 'customer' } }
+  });
+  chatPresenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = chatPresenceChannel.presenceState();
+      setChatOnlineStatus(Object.keys(state).some((k) => k !== 'customer'));
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') await chatPresenceChannel.track({ online_at: new Date().toISOString() });
+    });
 }
 
 async function openApprovedChat() {
@@ -652,6 +719,7 @@ async function openApprovedChat() {
     .order('created_at', { ascending: true });
   renderChatMessages(messages || []);
   subscribeChatRealtime();
+  subscribeChatPresence();
 }
 
 function subscribeConversationStatus() {
@@ -742,6 +810,7 @@ if (chatRequestForm) {
     currentConversationId = data.id;
     showChatState('pending');
     subscribeConversationStatus();
+    if (window.matchMedia('(max-width: 860px)').matches) openMobileChat();
   });
 }
 
@@ -752,6 +821,8 @@ if (chatForm) {
     const text = input.value.trim();
     if (!text || !currentConversationId || !sbClient) return;
     input.value = '';
+    const emojiPanel = document.getElementById('chatEmojiPanel');
+    if (emojiPanel) emojiPanel.classList.remove('open');
 
     const { data: inserted, error } = await sbClient
       .from('chat_messages')
@@ -763,6 +834,62 @@ if (chatForm) {
     sbClient.from('conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', currentConversationId).then(() => {});
+
+    if (window.matchMedia('(max-width: 860px)').matches) openMobileChat();
   });
 }
+
+// ---------- emoji picker ----------
+const CHAT_EMOJIS = ['😀','😁','😂','🤣','😊','🙂','😉','😍','😘','😜','🤔','😎','🥳','😢','😭','😡','👍','👎','🙏','👏','💪','🔥','✨','🎉','❤️','💯','✅','❌','🤝','😴','🙃','😇','🤩','😏','😬','🫡','👋','🤗','😳','🙄','😌','☕','🚀','💡','📌','📎'];
+
+function initEmojiPicker(btnId, panelId, inputId) {
+  const btn = document.getElementById(btnId);
+  const panel = document.getElementById(panelId);
+  const input = document.getElementById(inputId);
+  if (!btn || !panel || !input) return;
+
+  if (!panel.dataset.filled) {
+    panel.innerHTML = CHAT_EMOJIS.map((em) => `<button type="button" class="emoji-item">${em}</button>`).join('');
+    panel.dataset.filled = '1';
+    panel.querySelectorAll('.emoji-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        input.value += item.textContent;
+        input.focus();
+      });
+    });
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    panel.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) {
+      panel.classList.remove('open');
+    }
+  });
+}
+initEmojiPicker('chatEmojiBtn', 'chatEmojiPanel', 'chatInput');
+
+// ---------- mobile chat drawer (so chat continues in a side panel, not at the page bottom) ----------
+const chatFab = document.getElementById('chatFab');
+const chatPanelEl = document.getElementById('chatPanel');
+const chatPanelClose = document.getElementById('chatPanelClose');
+const chatPanelBackdrop = document.getElementById('chatPanelBackdrop');
+
+function openMobileChat() {
+  if (chatPanelEl) chatPanelEl.classList.add('mobile-open');
+  if (chatPanelBackdrop) chatPanelBackdrop.classList.add('open');
+  document.body.classList.add('chat-drawer-open');
+}
+function closeMobileChat() {
+  if (chatPanelEl) chatPanelEl.classList.remove('mobile-open');
+  if (chatPanelBackdrop) chatPanelBackdrop.classList.remove('open');
+  document.body.classList.remove('chat-drawer-open');
+}
+if (chatFab) chatFab.addEventListener('click', openMobileChat);
+if (chatPanelClose) chatPanelClose.addEventListener('click', closeMobileChat);
+if (chatPanelBackdrop) chatPanelBackdrop.addEventListener('click', closeMobileChat);
+
 
